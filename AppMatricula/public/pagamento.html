@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pagamento</title>
+<style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+    h1 { text-align: center; color: #333; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; color: #555; }
+    input { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    button { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; background-color: #28a745; color: white; font-size: 1rem; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="container" id="container-principal">
+    <h1>Passo 3: Pagamento</h1>
+    <form id="payment-form">
+        <div class="form-group">
+            <label for="numeroCartao">Número do Cartão:</label>
+            <input type="text" id="numeroCartao" name="numeroCartao" required />
+        </div>
+        <div class="form-group">
+            <label for="validade">Validade:</label>
+            <input type="text" id="validade" name="validade" placeholder="MM/AA" required />
+        </div>
+        <div class="form-group">
+            <label for="cvv">CVV:</label>
+            <input type="text" id="cvv" name="cvv" required />
+        </div>
+        <button type="submit">Finalizar Matrícula</button>
+    </form>
+</div>
+
+<script>
+    const form = document.getElementById('payment-form');
+    // IMPORTANTE: Substitua pela URL da sua função 'realizarPagamento'
+    const functionsUrl = 'https://somativa-functioncloud-g0d9dnhfb9g8a8fr.brazilsouth-01.azurewebsites.net/api/RealizarPagamento';
+
+    const dadosSalvos = JSON.parse(sessionStorage.getItem('dadosMatricula'));
+    if (!dadosSalvos || !dadosSalvos.cpf) {
+        document.getElementById('container-principal').innerHTML = '<h1>Erro: Dados do estudante não encontrados. Por favor, comece o processo do início.</h1>';
+    }
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const dadosPagamento = {
+            numeroCartao: document.getElementById('numeroCartao').value,
+            validade: document.getElementById('validade').value,
+            cvv: document.getElementById('cvv').value,
+        };
+
+        // "Dispare e Esqueça" - Usa o CPF como identificador
+        fetch(`${functionsUrl}?cpf=${dadosSalvos.cpf}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dadosPagamento),
+            keepalive: true
+        }).catch(console.error);
+
+        // Limpa a sessão e exibe a mensagem final
+        sessionStorage.removeItem('dadosMatricula');
+        document.getElementById('container-principal').innerHTML = "<h1>Obrigado!</h1><h2>Seus dados foram enviados. Você receberá um email com os próximos passos da sua matrícula.</h2>";
+    });
+</script>
+</body>
+</html>
+
+

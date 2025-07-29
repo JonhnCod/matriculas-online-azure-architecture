@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Upload de Documentos</title>
+<style>
+    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f0f2f5; margin: 0; }
+    .container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+    input[type="file"] { margin: 1rem 0; }
+    button { width: 100%; padding: 0.75rem; border: none; border-radius: 4px; background-color: #007bff; color: white; font-size: 1rem; cursor: pointer; }
+    #message { text-align: center; margin-top: 1rem; font-weight: bold; color: #333; }
+</style>
+</head>
+<body>
+<div class="container" id="container">
+    <h1>Passo 2: Enviar Documento</h1>
+    <form id="upload-form">
+        <input type="file" id="documento" name="documento" required />
+        <button type="submit">Enviar e Continuar para Pagamento</button>
+    </form>
+    <p id="message"></p>
+</div>
+
+<script>
+    const form = document.getElementById('upload-form');
+    const message = document.getElementById('message');
+    const container = document.getElementById('container');
+    const functionsUrl = 'https://somativa-functioncloud-g0d9dnhfb9g8a8fr.brazilsouth-01.azurewebsites.net/api/ReceberDocumento';
+
+    // Recupera dados do localStorage (mais persistente)
+    const dadosSalvos = JSON.parse(localStorage.getItem('dadosMatricula'));
+
+    if (!dadosSalvos || !dadosSalvos.cpf) {
+        container.innerHTML = '<h1>Erro: Dados do estudante não encontrados.<br>Por favor, comece o processo do início.</h1>';
+    }
+
+    // Função para retry no envio (3 tentativas)
+    async function enviarComRetry(url, formData, retries = 3) {
+        for (let i = 0; i < retries; i++) {
+            try {
+                const res = await fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    keepalive: true
+                });
+                if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+                return await res.json();
+            } catch (err) {
+                if (i === retries - 1) throw err;
+                await new Promise(resolve => setTimeout(resolve, 1000)); // espera 1s antes de tentar de novo
+            }
+        }
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        message.textContent = ''; // limpa mensagens antigas
+
+        const fileInput = document.getElementById('documento');
+        const file = fileInput.files[0];
+        if (!file) {
+            message.textContent = 'Por favor, selecione um arquivo.';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('documento', file);
+
+        // Anexa CPF para ligar ao estudante correto
+        const urlComCpf = `${functionsUrl}?cpf=${encodeURIComponent(dadosSalvos.cpf)}`;
+
+        message.textContent = 'Enviando documento, por favor aguarde...';
+        try {
+            await enviarComRetry(urlComCpf, formData);
+            // Se deu certo, limpa o storage do documento (opcional)
+            localStorage.removeItem('documentoEnviado'); // caso queira trackear
+            window.location.href = 'pagamento.html';
+        } catch (error) {
+            message.textContent = 'Erro ao enviar documento. Verifique sua conexão e tente novamente.';
+            console.error(error);
+        }
+    });
+
+    // Opcional: salvar nome do arquivo selecionado para recuperação futura
+    window.addEventListener('load', () => {
+        const nomeArquivoSalvo = localStorage.getItem('documentoNome');
+        if (nomeArquivoSalvo) {
+            message.textContent = `Último arquivo selecionado: ${nomeArquivoSalvo}`;
+        }
+    });
+
+    // Salvar o nome do arquivo para persistência local (para UX melhor)
+    document.getElementById('documento').addEventListener('change', (event) => {
+        if (event.target.files.length > 0) {
+            localStorage.setItem('documentoNome', event.target.files[0].name);
+        }
+    });
+</script>
+</body>
+</html>
